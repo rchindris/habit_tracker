@@ -7,14 +7,18 @@ license = "MIT"
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.8"
-
-[tool.poetry.scripts]
-tracker = "habit_tracker.cli:cli"
+python = "^3.10"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.1"
 
+flake8 = "^7.1.1"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+create_habit = "habit_tracker.cli:create"
+delete_habit = "habit_tracker.cli:delete"
+list_habits = "habit_tracker.cli:list"
+check_off_habit = "habit_tracker.cli:check_off"
