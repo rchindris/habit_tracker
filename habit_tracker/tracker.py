@@ -23,34 +23,63 @@ class HabitTracker:
         self._repository = repository
 
     def get_habits(self, periodicity: Periodicity|str) -> List[Habit]:
-        """Get all habits with the given periodicity."""
+        """Get all habits with the given periodicity.
+
+        Args:
+          periodicity (Periodicity|str): The periodicity of the habits to get.
+
+        Returns:
+          A list of habits with the given periodicity.
+        """
+        if periodicity is None:
+            raise ValueError("periodicity is None")
+
+        if isinstance(periodicity, str):
+            periodicity = Periodicity(periodicity)
+
         return self._repository.get_all(periodicity)
 
     def create(self, habit: Habit) -> bool:
         """Create a new habit and store it in the repository.
 
         Args:
-        habit (Habit): The habit to be created.
+          habit (Habit): The habit to create.
 
         Returns:
-        The new habit object if it was created successfully, None otherwise.
-        
+          The new habit object if it was created successfully, None otherwise.
+
+        Raises:
+          ValueError: If the habit is None.
+          HabitStoreException: If the habit already exists.
         """
         if habit is None:
             raise ValueError("habit is None")
 
-        existing_habit = self._repository.get_all(habit.name)
+        existing_habit = self._repository.get_by_name(habit.name)
         if existing_habit:
             raise HabitStoreException("A habit with the same name already exists")
 
         try:
             return self._repository.save(habit)
         except Exception as e:
-            print(e)
             raise HabitStoreException(str(e))
 
     def delete(self, habit_name: str) -> bool:
-        """Delete a habit."""
+        """Delete a habit.
+
+        Args:
+          habit_name (str): The name of the habit to delete.
+
+        Returns:
+          True if the habit was deleted successfully, False otherwise.
+
+        Raises:
+          ValueError: If the habit name is None.
+          HabitStoreException: If the habit is not found.
+        """
+        if habit_name is None:
+            raise ValueError("habit_name is None")
+
         habit = self._repository.get_by_name(habit_name)
         if not habit:
             raise HabitStoreException("Habit not found")
@@ -65,14 +94,28 @@ class HabitTracker:
         return deleted
     
     def check_off(self, habit_name: str) -> None:
-        """Check off a habit."""
+        """Check off a habit.
+
+        Args:
+          habit_name (str): The name of the habit to check off.
+
+        Returns:
+          None.
+
+        Raises:
+          ValueError: If the habit name is None.
+          HabitStoreException: If the habit is not found.
+        """
+        if habit_name is None:
+            raise ValueError("habit_name is None")
         habit = self._repository.get_by_name(habit_name)
         if not habit:
             raise HabitStoreException("Habit not found")
 
-        if habit:
+        try:
             self._repository.save(habit)
-            
+        except HabitStoreException as e:
+            logging.error(e)
             
             
         

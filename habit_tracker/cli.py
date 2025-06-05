@@ -16,9 +16,10 @@ def cli():
     """Habit Tracker CLI"""
     pass
 
+
 @cli.command()
-@click.option("--name", prompt="Habit name", help="The name of the habit.", default='as')
-@click.option("--description", prompt="Description", default="asdf",
+@click.argument("name")
+@click.option("--description", prompt="Description",
               help="The description of the habit.")
 @click.option("--periodicity", prompt="Periodicity",
               type=click.Choice(["daily", "weekly", "monthly"]),
@@ -58,6 +59,7 @@ def delete(name, db):
         console.print(f"[bold green]Habit '{name}' deleted.[/bold green]")
     else:
         console.print(f"[bold red]Failed to delete habit '{name}'[/bold red]")
+
 @cli.command()
 @click.option("--periodicity", 
               type=click.Choice(["daily", "weekly", "monthly", "all"]), 

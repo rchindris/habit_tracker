@@ -37,7 +37,14 @@ class SqlHabitRepository(HabitRepository):
         Base.metadata.create_all(self.engine)
 
     def save(self, habit: Habit) -> Optional[Habit]:
-        """Create a new habit in the database."""
+        """Create a new habit in the database.
+
+        Args:
+          habit (Habit): the habit object to save.
+
+        Returns:
+          the saved Habit instance.
+        """
         try:
             self.session.add(habit)
             self.session.commit()
@@ -48,7 +55,11 @@ class SqlHabitRepository(HabitRepository):
             raise HabitStoreException("A habit with the same name already exists")
 
     def get_all(self, periodicity: Periodicity|str) -> List[Habit]:
-        """Return the habits for a given periodicity."""
+        """Return the habits for a given periodicity.
+
+        Args:
+          periodicity (Periodicity|str): the habit periodicity.
+        """
         try:
             if periodicity:
                 habits = self.session.query(Habit).filter(Habit.periodicity == periodicity).all()            
