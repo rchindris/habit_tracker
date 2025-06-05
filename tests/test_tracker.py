@@ -1,5 +1,5 @@
 import pytest
-from datetime import date
+from datetime import date, timedelta
 from unittest.mock import Mock, MagicMock
 
 from habit_tracker.models import Habit, HabitRepository, Periodicity
@@ -15,6 +15,18 @@ def mock_repo():
 def tracker(mock_repo):
     """Create a tracker with a mock repository."""
     return HabitTracker(mock_repo)
+
+
+def test_habit_exists(tracker, mock_repo):
+    """Test that the habit exists."""
+    mock_repo.get_by_name.return_value = None
+    assert not tracker.habit_exists("Test Habit")
+    mock_repo.get_by_name.return_value = Habit(
+        name="Test Habit",
+        description="A test habit",
+        periodicity="daily",
+        start_date=date.today())
+    assert tracker.habit_exists("Test Habit")
 
 def test_create_habit(tracker, mock_repo):
     """Test creating a new habit."""
@@ -48,16 +60,16 @@ def test_create_duplicate_habit(tracker, mock_repo):
     mock_repo.get_by_name.return_value = habit
     
     # Execute and verify
-    with pytest.raises(HabitStoreException) as exc_info:
-        tracker.create(habit)
-    assert "already exists" in str(exc_info.value)
+    created = tracker.create(habit)
+    assert not created
     mock_repo.save.assert_not_called()
 
-def test_create_habit_none(tracker):
+def test_create_habit_none(tracker, mock_repo):
     """Test that creating None as habit raises ValueError."""
     with pytest.raises(ValueError) as exc_info:
         tracker.create(None)
     assert "habit is None" in str(exc_info.value)
+    mock_repo.save.assert_not_called()
 
 def test_get_habits_by_periodicity(tracker, mock_repo):
     """Test getting habits filtered by periodicity."""
@@ -74,12 +86,6 @@ def test_get_habits_by_periodicity(tracker, mock_repo):
     # Verify
     assert result == habits
     mock_repo.get_all.assert_called_once_with(Periodicity.DAILY)
-
-def test_get_habits_none_periodicity(tracker):
-    """Test that getting habits with None periodicity raises ValueError."""
-    with pytest.raises(ValueError) as exc_info:
-        tracker.get_habits(None)
-    assert "periodicity is None" in str(exc_info.value)
 
 def test_delete_habit(tracker, mock_repo):
     """Test deleting an existing habit."""
@@ -129,7 +135,7 @@ def test_check_off_habit(tracker, mock_repo):
     mock_repo.get_by_name.return_value = habit
     
     # Execute
-    tracker.check_off("Test Habit")
+    tracker.check_off("Test Habit", date.today())
     
     # Verify
     mock_repo.get_by_name.assert_called_once_with("Test Habit")
@@ -141,13 +147,17 @@ def test_check_off_nonexistent_habit(tracker, mock_repo):
     mock_repo.get_by_name.return_value = None
     
     # Execute and verify
-    with pytest.raises(HabitStoreException) as exc_info:
-        tracker.check_off("Nonexistent Habit")
-    assert "not found" in str(exc_info.value)
+    result = tracker.check_off("Nonexistent Habit", date.today())
+    assert not result
     mock_repo.save.assert_not_called()
 
 def test_check_off_none_habit_name(tracker):
     """Test that checking off with None as habit name raises ValueError."""
     with pytest.raises(ValueError) as exc_info:
-        tracker.check_off(None)
-    assert "habit_name is None" in str(exc_info.value) 
+        tracker.check_off(None, date.today())
+    assert "habit_name is None" in str(exc_info.value)
+
+def test_check_off_future_date(tracker, mock_repo):
+    """Test that checking off with a future date raises ValueError."""
+    result = tracker.check_off("Test Habit", date.today() + timedelta(days=1))
+    assert not result

@@ -2,12 +2,6 @@
 
 A command-line habit tracking application that helps you build and maintain good habits by tracking their completion over time.
 
-## Introduction
-
-This Habit Tracker is a Python-based CLI application that allows you to manage and track your habits. Whether you're trying to build a daily exercise routine, weekly reading goals, or monthly check-ins, this application helps you stay accountable and monitor your progress.
-
-The application uses SQLite for persistent storage, ensuring your habit data is safely stored and easily accessible. It features a clean command-line interface built with Click and Rich libraries for a great user experience.
-
 ## Features
 
 - **Habit Management**

@@ -50,12 +50,23 @@ def create(name, description, periodicity, start_date, db):
 @cli.command()
 @click.argument("name", required=True)
 @click.option('--db', default='habits.sqlite', help='Database file to use.')
-def delete(name, db):
+@click.option('--force', is_flag=True, help='Force deletion without confirmation.')
+def delete(name, db, force):
     """Delete an existing habit."""
     repo = SqlHabitRepository(db)
     tracker = HabitTracker(repo)
 
-    if tracker.delete(Habit(id=id, name=name)):
+    if not tracker.habit_exists(name):
+        console.print(f"[bold red]Habit '{name}' not found[/bold red]")
+        return
+    
+    if not force:
+        confirm = click.confirm(f"Are you sure you want to delete habit '{name}'?")
+        if not confirm:
+            console.print(f"[bold red]Aborted deletion of habit '{name}'[/bold red]")
+            return
+
+    if tracker.delete(name):
         console.print(f"[bold green]Habit '{name}' deleted.[/bold green]")
     else:
         console.print(f"[bold red]Failed to delete habit '{name}'[/bold red]")
@@ -91,16 +102,20 @@ def list(periodicity, db):
 @cli.command()
 @click.argument("name", required=True)
 @click.option('--db', default='habits.sqlite', help='Database to use.')
-def check_off(name, db):
+@click.option('--date', 
+              prompt='Date (YYYY-MM-DD)',
+              type=click.DateTime(formats=["%Y-%m-%d"]),
+              default=date.strftime(date.today(), "%Y-%m-%d"))
+def check_off(name, db, date):
     """Check off a habit."""
     repo = SqlHabitRepository(db)
     tracker = HabitTracker(repo)
 
-    try:
-        tracker.check_off(name)
+    if tracker.check_off(name, date.date()):
         console.print(f"[bold green]Checked off habit {name}[/bold green]")
-    except HabitStoreException as e:
-        console.print(f"[bold red]Failed to check off habit: {e}[/bold red]")
+    else:
+        console.print(f"[bold red]Failed to check off habit {name}[/bold red]")
+
 
 if __name__ == "__main__":
     cli()

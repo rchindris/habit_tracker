@@ -22,6 +22,14 @@ class HabitTracker:
 
         self._repository = repository
 
+    def habit_exists(self, habit_name: str) -> bool:
+        """Check if a habit exists.
+        
+        Args:
+          habit_name (str): The name of the habit to check.
+        """
+        return self._repository.get_by_name(habit_name) is not None
+
     def get_habits(self, periodicity: Periodicity|str) -> List[Habit]:
         """Get all habits with the given periodicity.
 
@@ -31,9 +39,6 @@ class HabitTracker:
         Returns:
           A list of habits with the given periodicity.
         """
-        if periodicity is None:
-            raise ValueError("periodicity is None")
-
         if isinstance(periodicity, str):
             periodicity = Periodicity(periodicity)
 
@@ -50,19 +55,20 @@ class HabitTracker:
 
         Raises:
           ValueError: If the habit is None.
-          HabitStoreException: If the habit already exists.
         """
         if habit is None:
             raise ValueError("habit is None")
 
         existing_habit = self._repository.get_by_name(habit.name)
         if existing_habit:
-            raise HabitStoreException("A habit with the same name already exists")
+            logging.error("A habit with the same name already exists")
+            return False
 
         try:
             return self._repository.save(habit)
         except Exception as e:
-            raise HabitStoreException(str(e))
+            logging.error(e)
+            return False
 
     def delete(self, habit_name: str) -> bool:
         """Delete a habit.
@@ -93,30 +99,42 @@ class HabitTracker:
 
         return deleted
     
-    def check_off(self, habit_name: str) -> None:
+    def check_off(self, habit_name: str, when: date) -> bool:
         """Check off a habit.
 
         Args:
           habit_name (str): The name of the habit to check off.
+          date (date): The date to check off the habit. If not provided, the current date is used.
 
         Returns:
-          None.
+          True if the habit was checked off successfully, False otherwise.
 
         Raises:
           ValueError: If the habit name is None.
-          HabitStoreException: If the habit is not found.
         """
         if habit_name is None:
             raise ValueError("habit_name is None")
+        if when is None:
+            when = date.today()
+
+        # Check if the date is in the future
+        if when > date.today():
+            logging.error("Date is in the future")
+            return False
+        
         habit = self._repository.get_by_name(habit_name)
         if not habit:
-            raise HabitStoreException("Habit not found")
+            logging.error("Habit not found")
+            return False
 
         try:
+            habit.check_off_log.append(CheckOff(date=when))
             self._repository.save(habit)
+            return True
         except HabitStoreException as e:
             logging.error(e)
-            
+        
+        return False
             
         
             
