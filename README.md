@@ -2,104 +2,211 @@
 
 A command-line habit tracking application that helps you build and maintain good habits by tracking their completion over time.
 
+## Overview
+
+The Habit Tracker helps you:
+- Create and manage habits with different periodicities (daily, weekly, monthly)
+- Track habit completion and maintain streaks
+- Identify broken habits that need attention
+- View detailed habit analytics
+
+Built with:
+- Python 3.10+
+- SQLite for data storage
+- Click for CLI interface
+- Rich for beautiful terminal output
+- SQLAlchemy for database management
+
 ## Features
 
-- **Habit Management**
-  - Create new habits with custom names and descriptions
-  - Delete existing habits when they're no longer needed
-  - List all habits with their current status
-  - Filter habits by periodicity (daily, weekly, monthly)
+### Core Features
+- Create, modify, and delete habits
+- Track habits with different periodicities
+- Check off completed habits
+- View habit history and progress
 
-- **Tracking**
-  - Check off habits as they're completed
-  - View habit completion history
-  - Track habits with different periodicities:
-    - Daily habits
-    - Weekly habits
-    - Monthly habits
+### Analytics
+- Track streak information
+- Identify broken habits (not checked off in their period)
+- Monitor habit status and health
+- Analyze performance over time
 
-- **User Interface**
-  - Beautiful CLI interface with colored output
-  - Clear error messages and feedback
-  - Easy-to-use command structure
-  - Tabulated data display
+### User Experience
+- Intuitive command-line interface
+- Beautiful terminal output
+- Clear error messages and feedback
+- Easy-to-use command structure
 
 ## Installation
 
-1. Ensure you have Python 3.10 or newer installed:
+1. **Prerequisites**
+   - Python 3.10 or newer
+   - pip or Poetry (recommended)
+
+2. **Install Python**
    ```bash
-   python --version
+   # Verify Python installation
+   python --version  # Should be 3.10 or higher
    ```
 
-2. Install Poetry (if not already installed):
+3. **Install Poetry** (recommended)
    ```bash
    curl -sSL https://install.python-poetry.org | python3 -
    ```
 
-3. Clone the repository:
+4. **Get the Code**
    ```bash
    git clone https://github.com/rchindris/habit_tracker
    cd habit_tracker
    ```
 
-4. Install dependencies using Poetry:
+5. **Install Dependencies**
    ```bash
    poetry install
    ```
 
-## Usage
+## Usage Guide
 
-The habit tracker provides several commands for managing your habits. Here are the main commands:
+### Quick Start with Sample Data
 
-### Creating a Habit
-
-Create a new habit with a name, description, and periodicity:
+To quickly get started with some sample habits, you can use the sample data initialization tool:
 
 ```bash
+# Initialize with sample habits
+poetry run create-habit-samples
+
+# Initialize with custom database file
+poetry run create-habit-samples --db my_habits.sqlite
+
+# Force recreation of sample data
+poetry run create-habit-samples --force
+```
+
+This will create 5 sample habits with realistic check-off history:
+- Daily habits: "Morning Exercise" and "Read Book"
+- Weekly habit: "Weekly Review"
+- Monthly habits: "Deep Clean" and "Budget Review"
+
+After initialization, you can use the regular commands to interact with these habits:
+```bash
+# View all sample habits
+poetry run habit list
+
+# Show detailed information for a habit
+poetry run habit show "Morning Exercise"
+
+# View check-off history
+poetry run habit history "Morning Exercise"
+
+# Check broken habits
+poetry run habit show-broken
+
+# View streaks
+poetry run habit streaks
+```
+
+### Basic Commands
+
+#### Creating Habits
+```bash
+# Create a new habit
 poetry run habit create "Morning Exercise" \
   --description "30 minutes of morning exercise" \
   --periodicity daily
+
+# Create a weekly habit
+poetry run habit create "Weekly Review" \
+  --description "Review weekly goals" \
+  --periodicity weekly
 ```
 
-### Listing Habits
-
-View all your habits or filter by periodicity:
-
+#### Managing Habits
 ```bash
 # List all habits
 poetry run habit list
 
-# List only daily habits
+# List habits by periodicity
 poetry run habit list --periodicity daily
-```
 
-### Checking Off a Habit
+# Show detailed information for a habit
+poetry run habit show "Morning Exercise"
 
-Mark a habit as completed:
+# View check-off history for a habit
+poetry run habit history "Morning Exercise"
 
-```bash
-poetry run habit check-off "Morning Exercise"
-```
-
-### Deleting a Habit
-
-Remove a habit from tracking:
-
-```bash
+# Delete a habit
 poetry run habit delete "Morning Exercise"
 ```
 
-### Command Options
+#### Tracking Progress
+```bash
+# Check off a habit
+poetry run habit check-off "Morning Exercise"
 
-Each command supports various options:
+# Check off with specific date
+poetry run habit check-off "Morning Exercise" --date "2024-01-15"
+```
 
-- `--db`: Specify a custom database file (default: habits.sqlite)
-- `--periodicity`: Filter habits by frequency (daily, weekly, monthly)
-- `--start-date`: Set a custom start date for new habits (YYYY-MM-DD format)
+### Analytics Commands
 
-For detailed help on any command, use the `--help` option:
+#### Viewing Streaks
+```bash
+# View all streaks
+poetry run habit streaks
+
+# View streaks for specific periodicity
+poetry run habit streaks --periodicity daily
+```
+
+#### Monitoring Broken Habits
+```bash
+# View all broken habits
+poetry run habit show-broken
+
+# View broken habits by periodicity
+poetry run habit show-broken --periodicity daily
+
+# Get detailed status for a specific habit
+poetry run habit analyze habit "Morning Exercise"
+```
+
+The broken habits analysis shows:
+- Which habits need attention
+- Last check-off date for each habit
+- Days since last completion
+- Habit status (Active/Broken)
+
+### Common Options
+
+Most commands support these options:
+- `--db`: Custom database file (default: habits.sqlite)
+- `--periodicity`: Filter by frequency (daily, weekly, monthly)
+- `--start-date`: Custom start date (YYYY-MM-DD)
+- `--date`: Specific date for check-offs (YYYY-MM-DD)
+
+### Getting Help
 
 ```bash
+# General help
 poetry run habit --help
+
+# Command-specific help
 poetry run habit create --help
+poetry run habit analyze --help
 ```
+
+## Data Storage
+
+The application uses SQLite for data storage:
+- Default database file: `habits.sqlite`
+- Custom database can be specified with `--db` option
+- Data is persisted between sessions
+- Each habit stores:
+  - Name and description
+  - Periodicity (daily/weekly/monthly)
+  - Start date
+  - Check-off history
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
