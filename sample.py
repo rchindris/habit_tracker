@@ -54,12 +54,12 @@ def create_sample_check_offs(tracker, habit, start_date):
     """Create random check-offs for a habit."""
     current_date = start_date
     today = date.today()
-    
+
     while current_date <= today:
         # Randomly check off with 70% probability
         if randint(1, 10) <= 7:
             tracker.check_off(habit.name, current_date)
-            
+
         # Move to next period based on periodicity
         if habit.periodicity == Periodicity.DAILY:
             current_date += timedelta(days=1)
@@ -78,29 +78,29 @@ def init_sample_data(db, force):
     """Initialize the database with sample habits."""
     repo = SqlHabitRepository(db)
     tracker = HabitTracker(repo)
-    
+
     # Check if database already has habits
     existing_habits = tracker.get_habits(None)
     if existing_habits and not force:
         click.echo("Database already contains habits. Use --force to override.")
         return
-        
+
     # Create sample habits
     click.echo(f"Initializing database '{db}' with sample habits...")
-    
+
     for habit_data in SAMPLE_HABITS:
         # Create habit
         habit = Habit(**habit_data)
         created_habit = tracker.create(habit)
         click.echo(f"Created habit: {created_habit.name} ({created_habit.periodicity})")
-        
+
         # Create some random check-offs
         create_sample_check_offs(tracker, created_habit, habit_data['start_date'])
         click.echo(f"Added sample check-offs for: {created_habit.name}")
-    
+
     click.echo("\nSample data initialization complete!")
     click.echo("Use 'poetry run habit list' to see the created habits.")
 
 
 if __name__ == "__main__":
-    init_sample_data() 
+    init_sample_data()

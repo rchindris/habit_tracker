@@ -1,9 +1,9 @@
+"""Command line interface for the habit tracker."""
 import click
 from datetime import date
 
 from rich.console import Console
 from rich.table import Table
-from rich.panel import Panel
 
 from habit_tracker.models import Habit, Periodicity, HabitStatus
 from habit_tracker.tracker import HabitTracker
@@ -12,6 +12,7 @@ from habit_tracker.exceptions import HabitStoreException
 from habit_tracker import analytics
 
 console = Console()
+
 
 # Create a group for all commands
 @click.group()
@@ -40,7 +41,7 @@ def create(name, description, periodicity, start_date, db):
     tracker = HabitTracker(repo)
 
     habit = Habit(
-        name=name, description=description, 
+        name=name, description=description,
         periodicity=periodicity, start_date=start_date
     )
 
@@ -63,7 +64,7 @@ def delete(name, db, force):
     if not tracker.habit_exists(name):
         console.print(f"[bold red]Habit '{name}' not found[/bold red]")
         return
-    
+
     if not force:
         confirm = click.confirm(f"Are you sure you want to delete habit '{name}'?")
         if not confirm:
@@ -77,8 +78,8 @@ def delete(name, db, force):
 
 
 @cli.command()
-@click.option("--periodicity", 
-              type=click.Choice(["daily", "weekly", "monthly", "all"]), 
+@click.option("--periodicity",
+              type=click.Choice(["daily", "weekly", "monthly", "all"]),
               help="Filter habits by periodicity.",
               default="all")
 @click.option('--db', default='habits.sqlite', help='Database to use.')
@@ -105,7 +106,7 @@ def list(periodicity, db):
     table.add_column("Start Date")
     table.add_column("Last Check-off")
     table.add_column("Status", justify="center")
-    
+
     for habit in habits:
         last_check_off = habit.check_off_log[-1].date if habit.check_off_log else "Never"
         status, _ = analytics.get_habit_status(habit)
@@ -114,7 +115,7 @@ def list(periodicity, db):
             HabitStatus.PENDING: "[yellow]Pending[/yellow]",
             HabitStatus.BROKEN: "[red]Broken[/red]"
         }[status]
-        
+
         table.add_row(
             habit.name,
             habit.description,
@@ -130,7 +131,7 @@ def list(periodicity, db):
 @cli.command('check-off')
 @click.argument("name", required=True)
 @click.option('--db', default='habits.sqlite', help='Database to use.')
-@click.option('--date', 
+@click.option('--date',
               prompt='Date (YYYY-MM-DD)',
               type=click.DateTime(formats=["%Y-%m-%d"]),
               default=date.strftime(date.today(), "%Y-%m-%d"))
@@ -147,15 +148,15 @@ def check_off(name, db, date):
 
 @cli.command()
 @click.option('--db', default='habits.sqlite', help='Database to use.')
-@click.option("--periodicity", 
-              type=click.Choice(["daily", "weekly", "monthly", "all"]), 
+@click.option("--periodicity",
+              type=click.Choice(["daily", "weekly", "monthly", "all"]),
               help="Filter habits by periodicity.",
               default="all")
 def streaks(db, periodicity):
     """Show streak information for all habits."""
     repo = SqlHabitRepository(db)
     tracker = HabitTracker(repo)
-    
+
     # Get habits using analytics module
     all_habits = tracker.get_habits(None)
     if periodicity != "all":
@@ -178,7 +179,7 @@ def streaks(db, periodicity):
     for habit in habits:
         longest_streak = analytics.get_longest_streak_for_habit(habit)
         completion_rate = analytics.get_habit_completion_rate(habit)
-        
+
         table.add_row(
             habit.name,
             str(longest_streak),
@@ -191,12 +192,14 @@ def streaks(db, periodicity):
     # Show overall longest streak
     longest_habit, longest_streak = analytics.get_longest_streak_all_habits(habits)
     if longest_streak > 0:
-        console.print(f"\n[bold green]Longest streak overall: {longest_streak} by '{longest_habit}'[/bold green]")
+        console.print(
+            f"\n[bold green]Longest streak: {longest_streak} by '{longest_habit}'[/bold green]"
+        )
 
 
 @cli.command()
-@click.option("--periodicity", 
-              type=click.Choice(["daily", "weekly", "monthly", "all"]), 
+@click.option("--periodicity",
+              type=click.Choice(["daily", "weekly", "monthly", "all"]),
               help="Filter habits by periodicity.",
               default="all")
 @click.option('--db', default='habits.sqlite', help='Database to use.')
@@ -204,7 +207,7 @@ def show_broken(periodicity, db):
     """Show broken habits (not checked off in their last period)."""
     repo = SqlHabitRepository(db)
     tracker = HabitTracker(repo)
-    
+
     # Get habits using analytics module
     all_habits = tracker.get_habits(None)
     if periodicity != "all":
@@ -222,7 +225,7 @@ def show_broken(periodicity, db):
         status, last_check_off = analytics.get_habit_status(habit)
         if status in (HabitStatus.BROKEN, HabitStatus.PENDING):
             attention_habits.append((habit, status, last_check_off))
-    
+
     if not attention_habits:
         console.print("[green]No habits need attention! Keep up the good work![/green]")
         return
@@ -234,7 +237,7 @@ def show_broken(periodicity, db):
     table.add_column("Last Check-off")
     table.add_column("Days Since", justify="right")
     table.add_column("Status", justify="center")
-    
+
     today = date.today()
     for habit, status, last_check_off in attention_habits:
         days_since = (today - last_check_off).days if last_check_off else "Never"
@@ -242,7 +245,7 @@ def show_broken(periodicity, db):
             HabitStatus.PENDING: "[yellow]Pending[/yellow]",
             HabitStatus.BROKEN: "[red]Broken[/red]"
         }[status]
-        
+
         table.add_row(
             habit.name,
             str(habit.periodicity),
@@ -262,7 +265,7 @@ def show(habit_name, db):
     """Show detailed information for a specific habit."""
     repo = SqlHabitRepository(db)
     tracker = HabitTracker(repo)
-    
+
     habit = tracker.get_habit(habit_name)
     if not habit:
         console.print(f"[bold red]Habit '{habit_name}' not found[/bold red]")
@@ -276,13 +279,13 @@ def show(habit_name, db):
     # Add metrics
     longest_streak = analytics.get_longest_streak_for_habit(habit)
     status, last_check_off = analytics.get_habit_status(habit)
-    
+
     status_display = {
         HabitStatus.STREAK: "[green]Streak[/green]",
         HabitStatus.PENDING: "[yellow]Pending[/yellow]",
         HabitStatus.BROKEN: "[red]Broken[/red]"
     }[status]
-    
+
     table.add_row("Periodicity", str(habit.periodicity))
     table.add_row("Start Date", str(habit.start_date))
     table.add_row("Days Tracked", str((date.today() - habit.start_date).days))
@@ -293,8 +296,10 @@ def show(habit_name, db):
         table.add_row("Last Check-off", str(last_check_off))
 
     console.print(table)
-    console.print("\n[blue]Tip:[/blue] Use [italic]poetry run habit history", 
-                 f'"{habit_name}"[/italic] to see check-off history.')
+    console.print(
+        "\n[blue]Tip:[/blue] Use [italic]poetry run habit history",
+        f'"{habit_name}"[/italic] to see check-off history.'
+    )
 
 
 @cli.command()
@@ -304,7 +309,7 @@ def history(habit_name, db):
     """Show check-off history for a specific habit."""
     repo = SqlHabitRepository(db)
     tracker = HabitTracker(repo)
-    
+
     habit = tracker.get_habit(habit_name)
     if not habit:
         console.print(f"[bold red]Habit '{habit_name}' not found[/bold red]")
@@ -315,14 +320,14 @@ def history(habit_name, db):
         table = Table(title=f"Check-off History for '{habit.name}'")
         table.add_column("Date", style="cyan")
         table.add_column("Days Ago", justify="right")
-        
+
         # Sort check-offs by date, most recent first
         sorted_check_offs = sorted(
             habit.check_off_log,
             key=lambda co: co.date,
             reverse=True
         )
-        
+
         today = date.today()
         for check_off in sorted_check_offs:
             days_ago = (today - check_off.date).days
@@ -333,7 +338,7 @@ def history(habit_name, db):
                 str(check_off.date),
                 days_text
             )
-        
+
         console.print(table)
         console.print(f"\n[green]Total check-offs: {len(habit.check_off_log)}[/green]")
     else:

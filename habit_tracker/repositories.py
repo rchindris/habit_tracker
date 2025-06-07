@@ -1,89 +1,77 @@
 import logging
-from typing import Union, List, Optional
+from typing import List, Optional
 
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
-from habit_tracker.exceptions import HabitStoreException
 from habit_tracker.models import (
-    Base,
-    Habit, 
-    HabitRepository, 
-    Periodicity
+    Habit,
+    HabitRepository,
+    Periodicity,
 )
 
 
 class SqlHabitRepository(HabitRepository):
-    """A habit repository implementation using SQLAlchemy"""
+    """SQLite-based implementation of the habit repository."""
 
     def __init__(self, db_file: str):
-        """Initialize the repository.
-
-        Args:
-            db_file (str): the path to the SQLite database file.
-        """
+        """Initialize the repository with a database file."""
         if not db_file:
             raise ValueError("db_file is None")
-            
+
         self._logger = logging.getLogger(SqlHabitRepository.__name__)
 
-        # Create SQLAlchemy engine and session
-        self.engine = create_engine(f'sqlite:///{db_file}')
-        self.session_factory = sessionmaker(bind=self.engine, expire_on_commit=False)
-        self.session = self.session_factory()
-        
-        # Ensure the tables exist
-        Base.metadata.create_all(self.engine)
+        self.engine = create_engine(f"sqlite:///{db_file}")
+        Habit.metadata.create_all(self.engine)
 
-    def save(self, habit: Habit) -> Optional[Habit]:
-        """Create a new habit in the database.
+    def save(self, habit: Habit):
+        """Store a new habit.
 
         Args:
-          habit (Habit): the habit object to save.
+            habit (Habit): The habit to store.
+        Raises:
+            ValueError: If the habit already exists.
+        """
+        with Session(self.engine) as session:
+            session.add(habit)
+            try:
+                session.commit()
+            except IntegrityError:
+                session.rollback()
+                raise ValueError(f"Habit with name '{habit.name}' already exists")
 
+    def get_all(self, periodicity: Periodicity | str) -> List[Habit]:
+        """Return the habits with the given periodicity.
+
+        Args:
+            periodicity (Periodicity | str): The periodicity to filter by.
         Returns:
-          the saved Habit instance.
+            List[Habit]: The filtered habits.
         """
-        try:
-            self.session.add(habit)
-            self.session.commit()
-            
-            return habit  # The habit now has an ID after commit
-        except IntegrityError as ie:
-            self.session.rollback()
-            raise HabitStoreException("A habit with the same name already exists")
+        with Session(self.engine) as session:
+            query = session.query(Habit)
+            if periodicity:
+                query = query.filter(Habit.periodicity == periodicity)
+            return list(query.all())
 
-    def get_all(self, periodicity: Periodicity|str) -> List[Habit]:
-        """Return the habits for a given periodicity.
+    def get_by_name(self, name: str) -> Optional[Habit]:
+        """Return the habit with the given name.
 
         Args:
-          periodicity (Periodicity|str): the habit periodicity.
+            name (str): The name of the habit to get.
+        Returns:
+            Optional[Habit]: The habit if found, None otherwise.
         """
-        try:
-            if periodicity:
-                habits = self.session.query(Habit).filter(Habit.periodicity == periodicity).all()            
-            else:
-                habits = self.session.query(Habit).all()
-            return habits
-        except Exception as e:
-            raise HabitStoreException(str(e))
-    
-    def get_by_name(self, name: str) -> Optional[Habit]:
-        """Return the habit with the given name."""
-        try:
-            return self.session.query(Habit).filter(Habit.name == name).first()
-        except Exception as e:
-            raise HabitStoreException(str(e))
+        with Session(self.engine) as session:
+            return session.query(Habit).filter(Habit.name == name).first()
 
     def delete(self, habit: Habit):
-        """Remove an existing habit from the database."""
-        if not habit:
-            raise ValueError("habit is None")
+        """Remove an existing habit.
 
-        try:
-            self.session.delete(habit)
-            self.session.commit()
-        except Exception as e:
-            self.session.rollback()
-            raise HabitStoreException(str(e))
+        Args:
+            habit (Habit): The habit to delete.
+        """
+        with Session(self.engine) as session:
+            session.delete(habit)
+            session.commit()

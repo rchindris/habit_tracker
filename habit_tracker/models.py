@@ -19,9 +19,9 @@ class Periodicity(StrEnum):
 
 class HabitStatus(StrEnum):
     """Status of a habit's completion in current and previous periods."""
-    STREAK = "streak"   # Checked off in current period
-    PENDING = "pending" # Not checked off in current period, but checked off in previous
-    BROKEN = "broken"   # Not checked off in both current and previous periods
+    STREAK = "streak"    # Checked off in current period
+    PENDING = "pending"  # Not checked off in current period, but checked off in previous
+    BROKEN = "broken"    # Not checked off in both current and previous periods
 
 
 class CheckOff(Base):
@@ -32,7 +32,6 @@ class CheckOff(Base):
     habit_id = Column(Integer, ForeignKey('habits.id'))
     date = Column(Date, nullable=False, default=date.today)
     habit: Mapped["Habit"] = relationship(back_populates="check_off_log")
-
 
 
 class Habit(Base):
@@ -56,7 +55,7 @@ class HabitRepository(ABC):
         ...
 
     @abstractmethod
-    def get_all(self, periodicity: Periodicity|str) -> List[Habit]:
+    def get_all(self, periodicity: Periodicity | str) -> List[Habit]:
         """Return the habits with the given periodicity."""
         ...
 

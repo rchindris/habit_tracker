@@ -1,151 +1,110 @@
-import logging
-from typing import List
+from typing import List, Optional
 from datetime import date
 
 from habit_tracker.models import (
     Habit, HabitRepository, Periodicity, CheckOff
 )
-from habit_tracker.exceptions import HabitStoreException
 
 
 class HabitTracker:
-    """"Implementation of the HabitTracker application logic."""
+    """Core habit tracking functionality."""
 
     def __init__(self, repository: HabitRepository):
-        """Initialize for the given repository.
+        """Initialize the tracker with a repository."""
+        self.repository = repository
+
+    def create(self, habit: Habit) -> Habit:
+        """Create a new habit.
 
         Args:
-        repostiory (HabitRepository): The repository for storing habits.
+            habit (Habit): The habit to create.
+        Returns:
+            Habit: The created habit.
+        Raises:
+            ValueError: If the habit name, description, or periodicity is not provided.
         """
-        if repository is None:
-            raise ValueError("repository is None")
+        if not habit.name:
+            raise ValueError("Habit name is required")
+        if not habit.description:
+            raise ValueError("Habit description is required")
+        if not habit.periodicity:
+            raise ValueError("Habit periodicity is required")
+        if not habit.start_date:
+            habit.start_date = date.today()
 
-        self._repository = repository
+        self.repository.save(habit)
+        return habit
 
-    def habit_exists(self, habit_name: str) -> bool:
+    def get_habits(self, periodicity: Optional[Periodicity | str] = None) -> List[Habit]:
+        """Return habits filtered by periodicity.
+
+        Args:
+            periodicity (Optional[Periodicity | str]): The periodicity to filter by.
+        Returns:
+            List[Habit]: The filtered habits.
+        """
+        return self.repository.get_all(periodicity)
+
+    def get_habit(self, name: str) -> Optional[Habit]:
+        """Return a habit by name.
+
+        Args:
+            name (str): The name of the habit to get.
+        Returns:
+            Optional[Habit]: The habit if found, None otherwise.
+        """
+        return self.repository.get_by_name(name)
+
+    def habit_exists(self, name: str) -> bool:
         """Check if a habit exists.
-        
-        Args:
-          habit_name (str): The name of the habit to check.
-        """
-        return self._repository.get_by_name(habit_name) is not None
-    
-    def get_habit(self, habit_name: str) -> Habit:
-        """Get a habit by name.
-        
-        Args:
-          habit_name (str): The name of the habit to get.
-        """
-        return self._repository.get_by_name(habit_name)
-
-    def get_habits(self, periodicity: Periodicity|str) -> List[Habit]:
-        """Get all habits with the given periodicity.
 
         Args:
-          periodicity (Periodicity|str): The periodicity of the habits to get.
-
+            name (str): The name of the habit to check.
         Returns:
-          A list of habits with the given periodicity.
+            bool: True if the habit exists, False otherwise.
         """
-        if isinstance(periodicity, str):
-            periodicity = Periodicity(periodicity)
+        return self.get_habit(name) is not None
 
-        return self._repository.get_all(periodicity)
-
-    def create(self, habit: Habit) -> bool:
-        """Create a new habit and store it in the repository.
+    def check_off(self, name: str, check_date: date = None) -> bool:
+        """Check off a habit for a given date.
 
         Args:
-          habit (Habit): The habit to create.
-
+            name (str): The name of the habit to check off.
+            check_date (date): The date to check off the habit.
         Returns:
-          The new habit object if it was created successfully, None otherwise.
-
-        Raises:
-          ValueError: If the habit is None.
+            bool: True if the habit was checked off, False otherwise.
         """
-        if habit is None:
-            raise ValueError("habit is None")
-
-        existing_habit = self._repository.get_by_name(habit.name)
-        if existing_habit:
-            logging.error("A habit with the same name already exists")
-            return False
-
-        try:
-            return self._repository.save(habit)
-        except Exception as e:
-            logging.error(e)
-            return False
-
-    def delete(self, habit_name: str) -> bool:
-        """Delete a habit.
-
-        Args:
-          habit_name (str): The name of the habit to delete.
-
-        Returns:
-          True if the habit was deleted successfully, False otherwise.
-
-        Raises:
-          ValueError: If the habit name is None.
-          HabitStoreException: If the habit is not found.
-        """
-        if habit_name is None:
-            raise ValueError("habit_name is None")
-
-        habit = self._repository.get_by_name(habit_name)
+        habit = self.get_habit(name)
         if not habit:
-            raise HabitStoreException("Habit not found")
-
-        deleted = False
-        try:
-            self._repository.delete(habit)
-            deleted = True
-        except HabitStoreException as e:
-            logging.error(e)
-
-        return deleted
-    
-    def check_off(self, habit_name: str, when: date) -> bool:
-        """Check off a habit.
-
-        Args:
-          habit_name (str): The name of the habit to check off.
-          date (date): The date to check off the habit. If not provided, the current date is used.
-
-        Returns:
-          True if the habit was checked off successfully, False otherwise.
-
-        Raises:
-          ValueError: If the habit name is None.
-        """
-        if habit_name is None:
-            raise ValueError("habit_name is None")
-        if when is None:
-            when = date.today()
-
-        # Check if the date is in the future
-        if when > date.today():
-            logging.error("Date is in the future")
-            return False
-        
-        habit = self._repository.get_by_name(habit_name)
-        if not habit:
-            logging.error("Habit not found")
             return False
 
+        if not check_date:
+            check_date = date.today()
+
+        # Create a new check-off
+        check_off = CheckOff(date=check_date)
+        habit.check_off_log.append(check_off)
+
         try:
-            habit.check_off_log.append(CheckOff(date=when))
-            self._repository.save(habit)
+            self.repository.save(habit)
             return True
-        except HabitStoreException as e:
-            logging.error(e)
-        
-        return False
-            
-        
-            
-            
-        
-        
+        except Exception:
+            return False
+
+    def delete(self, name: str) -> bool:
+        """Delete a habit by name.
+
+        Args:
+            name (str): The name of the habit to delete.
+        Returns:
+            bool: True if the habit was deleted, False otherwise.
+        """
+        habit = self.get_habit(name)
+        if not habit:
+            return False
+
+        try:
+            self.repository.delete(habit)
+            return True
+        except Exception:
+            return False
