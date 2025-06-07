@@ -105,6 +105,82 @@ poetry run habit show-broken
 poetry run habit streaks
 ```
 
+### Analytics Features
+
+The habit tracker provides several ways to analyze your habits and track progress:
+
+#### Viewing All Habits
+```bash
+# List all tracked habits
+poetry run habit list
+
+# List habits by periodicity (daily/weekly/monthly)
+poetry run habit list --periodicity daily
+poetry run habit list --periodicity weekly
+poetry run habit list --periodicity monthly
+```
+
+#### Tracking Streaks
+```bash
+# View streaks for all habits
+poetry run habit streaks
+
+# View streaks by periodicity
+poetry run habit streaks --periodicity daily
+
+# View detailed statistics for a specific habit (includes longest streak)
+poetry run habit show "Morning Exercise"
+```
+
+The streaks command shows:
+- Current streak for each habit
+- Longest streak for each habit
+- The overall longest streak across all habits
+
+#### Monitoring Habit Health
+```bash
+# Show broken habits (not checked off in their period)
+poetry run habit show-broken
+
+# Show broken habits by periodicity
+poetry run habit show-broken --periodicity daily
+```
+
+#### Viewing Habit Details
+```bash
+# Show detailed statistics for a habit
+poetry run habit show "Morning Exercise"
+
+# View complete check-off history
+poetry run habit history "Morning Exercise"
+```
+
+Example outputs:
+
+1. List command shows:
+   - Habit name and description
+   - Periodicity
+   - Start date
+   - Last check-off date
+   - Current status
+
+2. Streaks command shows:
+   - Longest streak for each habit
+   - Current streak
+   - Overall best streak across all habits
+
+3. Show command displays:
+   - Basic habit information
+   - Streak information
+   - Current status (Streak/Broken)
+   - Days tracked
+   - Total completions
+
+4. History command shows:
+   - Complete check-off history
+   - Dates of all completions
+   - Days since each check-off
+
 ### Basic Commands
 
 #### Creating Habits

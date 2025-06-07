@@ -3,13 +3,14 @@
 This module implements analytics functionality using functional programming principles.
 It provides functions to analyze habits and their completion patterns.
 """
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Literal
 from datetime import date, timedelta
 from itertools import groupby
 from operator import attrgetter
 from functools import reduce
+from enum import Enum
 
-from habit_tracker.models import Habit, Periodicity
+from habit_tracker.models import Habit, Periodicity, HabitStatus
 
 
 def get_all_habits(habits: List[Habit]) -> List[Habit]:
@@ -129,80 +130,102 @@ def get_longest_streak_all_habits(habits: List[Habit]) -> Tuple[str, int]:
     )
 
 
-def _get_period_dates(current_date: date, periodicity: Periodicity) -> Tuple[date, date]:
-    """Get the start and end dates for the previous period.
+def _get_period_dates(current_date: date, periodicity: Periodicity, offset: int = 0) -> Tuple[date, date]:
+    """Get the start and end dates for a period.
     
     Args:
         current_date: The date to check from
         periodicity: The habit's periodicity
+        offset: Period offset (0 for current, 1 for previous, etc.)
         
     Returns:
         Tuple of (period_start, period_end) dates
     """
     if periodicity == Periodicity.DAILY:
-        return (
-            current_date - timedelta(days=1),
-            current_date - timedelta(days=1)
-        )
+        period_end = current_date - timedelta(days=offset)
+        return (period_end, period_end)
     elif periodicity == Periodicity.WEEKLY:
-        period_end = current_date - timedelta(days=1)
+        period_end = current_date - timedelta(days=offset * 7)
         return (
             period_end - timedelta(days=6),
             period_end
         )
     else:  # Monthly
         # Approximate month as 30 days
-        period_end = current_date - timedelta(days=1)
+        period_end = current_date - timedelta(days=offset * 30)
         return (
             period_end - timedelta(days=29),
             period_end
         )
 
 
-def is_habit_broken(habit: Habit, as_of_date: date = None) -> Tuple[bool, Optional[date]]:
-    """Check if a habit is broken (missed in its last period).
+def get_habit_status(habit: Habit, as_of_date: date = None) -> Tuple[HabitStatus, Optional[date]]:
+    """Get the current status of a habit.
     
-    A habit is considered broken if it was not checked off in its previous period:
-    - Daily habits: Not checked off yesterday
-    - Weekly habits: Not checked off in the previous 7 days
-    - Monthly habits: Not checked off in the previous 30 days
+    A habit's status is determined as follows:
+    - STREAK: Checked off in the current period
+    - PENDING: Not checked off in current period, but checked off in previous period
+    - BROKEN: Not checked off in both current and previous periods
     
     Args:
         habit: The habit to analyze
         as_of_date: The date to check from (defaults to today)
         
     Returns:
-        Tuple of (is_broken, last_check_off_date)
+        Tuple of (status, last_check_off_date)
     """
     if not habit.start_date:
-        return (False, None)
+        return (HabitStatus.STREAK, None)
         
     current_date = as_of_date or date.today()
     
-    # If habit started today or in the future, it's not broken
-    if habit.start_date >= current_date:
-        return (False, None)
+    # If habit hasn't started yet, it's not broken
+    if habit.start_date > current_date:
+        return (HabitStatus.STREAK, None)
         
     check_off_dates = sorted([co.date for co in habit.check_off_log])
     if not check_off_dates:
-        # Only broken if start date is before the current period
-        period_start, _ = _get_period_dates(current_date, habit.periodicity)
-        return (habit.start_date <= period_start, None)
+        # If no check-offs and should have started, it's broken
+        period_start, _ = _get_period_dates(current_date, habit.periodicity, 1)
+        return (
+            HabitStatus.BROKEN if habit.start_date <= period_start 
+            else HabitStatus.PENDING,
+            None
+        )
     
-    # Get the previous period's date range
-    period_start, period_end = _get_period_dates(current_date, habit.periodicity)
+    # Get current and previous period dates
+    curr_start, curr_end = _get_period_dates(current_date, habit.periodicity, 0)
+    prev_start, prev_end = _get_period_dates(current_date, habit.periodicity, 1)
     
-    # Check if the habit started before or during the period we're checking
-    if habit.start_date > period_end:
-        return (False, check_off_dates[-1])
+    # If habit started after the previous period, it can't be broken
+    if habit.start_date > prev_end:
+        has_current = any(
+            curr_start <= check_date <= curr_end
+            for check_date in check_off_dates
+        )
+        return (
+            HabitStatus.STREAK if has_current else HabitStatus.PENDING,
+            check_off_dates[-1]
+        )
     
-    # Check if there are any check-offs in the previous period
-    has_period_checkoff = any(
-        period_start <= check_date <= period_end
+    # Check both periods
+    has_current = any(
+        curr_start <= check_date <= curr_end
+        for check_date in check_off_dates
+    )
+    has_previous = any(
+        prev_start <= check_date <= prev_end
         for check_date in check_off_dates
     )
     
-    return (not has_period_checkoff, check_off_dates[-1])
+    if has_current:
+        status = HabitStatus.STREAK
+    elif has_previous:
+        status = HabitStatus.PENDING
+    else:
+        status = HabitStatus.BROKEN
+    
+    return (status, check_off_dates[-1])
 
 
 def get_broken_habits(habits: List[Habit], as_of_date: date = None) -> List[Tuple[str, date, Periodicity]]:
@@ -220,8 +243,8 @@ def get_broken_habits(habits: List[Habit], as_of_date: date = None) -> List[Tupl
     current_date = as_of_date or date.today()
     
     for habit in habits:
-        is_broken, last_check_off = is_habit_broken(habit, current_date)
-        if is_broken:
+        status, last_check_off = get_habit_status(habit, current_date)
+        if status == HabitStatus.BROKEN:
             broken_habits.append((
                 habit.name,
                 last_check_off or habit.start_date,

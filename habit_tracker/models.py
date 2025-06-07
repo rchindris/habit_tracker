@@ -17,6 +17,13 @@ class Periodicity(StrEnum):
     MONTHLY = "monthly"
 
 
+class HabitStatus(StrEnum):
+    """Status of a habit's completion in current and previous periods."""
+    STREAK = "streak"   # Checked off in current period
+    PENDING = "pending" # Not checked off in current period, but checked off in previous
+    BROKEN = "broken"   # Not checked off in both current and previous periods
+
+
 class CheckOff(Base):
     """A check off model element."""
     __tablename__ = 'check_offs'

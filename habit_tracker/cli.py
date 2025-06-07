@@ -5,7 +5,7 @@ from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
 
-from habit_tracker.models import Habit, Periodicity
+from habit_tracker.models import Habit, Periodicity, HabitStatus
 from habit_tracker.tracker import HabitTracker
 from habit_tracker.repositories import SqlHabitRepository
 from habit_tracker.exceptions import HabitStoreException
@@ -100,24 +100,30 @@ def list(periodicity, db):
 
     table = Table(title="Habits")
     table.add_column("Name", style="bold")
+    table.add_column("Description", style="italic")
     table.add_column("Periodicity")
     table.add_column("Start Date")
-    table.add_column("Last Checked Off")
-    table.add_column("Completion Rate")
-    
-    # Get completion rates for all habits
-    completion_rates = {name: rate for name, rate in analytics.get_all_completion_rates(habits)}
+    table.add_column("Last Check-off")
+    table.add_column("Status", justify="center")
     
     for habit in habits:
         last_check_off = habit.check_off_log[-1].date if habit.check_off_log else "Never"
-        table.add_row(
-            habit.name, 
-            str(habit.periodicity), 
-            str(habit.start_date), 
-            str(last_check_off),
-            f"{completion_rates[habit.name]:.1f}%"
-        )
+        status, _ = analytics.get_habit_status(habit)
+        status_display = {
+            HabitStatus.STREAK: "[green]Streak[/green]",
+            HabitStatus.PENDING: "[yellow]Pending[/yellow]",
+            HabitStatus.BROKEN: "[red]Broken[/red]"
+        }[status]
         
+        table.add_row(
+            habit.name,
+            habit.description,
+            str(habit.periodicity),
+            str(habit.start_date),
+            str(last_check_off),
+            status_display
+        )
+
     console.print(table)
 
 
@@ -210,32 +216,43 @@ def show_broken(periodicity, db):
         console.print("[yellow]No habits found[/yellow]")
         return
 
-    # Get broken habits
-    broken_habits = analytics.get_broken_habits(habits)
+    # Filter habits that need attention (broken or pending)
+    attention_habits = []
+    for habit in habits:
+        status, last_check_off = analytics.get_habit_status(habit)
+        if status in (HabitStatus.BROKEN, HabitStatus.PENDING):
+            attention_habits.append((habit, status, last_check_off))
     
-    if not broken_habits:
-        console.print("[green]No broken habits! Keep up the good work![/green]")
+    if not attention_habits:
+        console.print("[green]No habits need attention! Keep up the good work![/green]")
         return
 
-    # Create broken habits table
-    table = Table(title="Broken Habits")
+    # Create table for habits needing attention
+    table = Table(title="Habits Needing Attention")
     table.add_column("Habit", style="bold")
     table.add_column("Periodicity")
     table.add_column("Last Check-off")
     table.add_column("Days Since", justify="right")
+    table.add_column("Status", justify="center")
     
     today = date.today()
-    for name, last_date, periodicity in broken_habits:
-        days_since = (today - last_date).days if last_date else "Never"
+    for habit, status, last_check_off in attention_habits:
+        days_since = (today - last_check_off).days if last_check_off else "Never"
+        status_display = {
+            HabitStatus.PENDING: "[yellow]Pending[/yellow]",
+            HabitStatus.BROKEN: "[red]Broken[/red]"
+        }[status]
+        
         table.add_row(
-            name,
-            str(periodicity),
-            str(last_date) if last_date else "Never",
-            str(days_since)
+            habit.name,
+            str(habit.periodicity),
+            str(last_check_off) if last_check_off else "Never",
+            str(days_since),
+            status_display
         )
 
     console.print(table)
-    console.print(f"\n[yellow]Found {len(broken_habits)} broken habit(s)[/yellow]")
+    console.print(f"\n[yellow]Found {len(attention_habits)} habit(s) needing attention[/yellow]")
 
 
 @cli.command()
@@ -258,23 +275,26 @@ def show(habit_name, db):
 
     # Add metrics
     longest_streak = analytics.get_longest_streak_for_habit(habit)
-    is_broken, last_check_off = analytics.is_habit_broken(habit)
+    status, last_check_off = analytics.get_habit_status(habit)
+    
+    status_display = {
+        HabitStatus.STREAK: "[green]Streak[/green]",
+        HabitStatus.PENDING: "[yellow]Pending[/yellow]",
+        HabitStatus.BROKEN: "[red]Broken[/red]"
+    }[status]
     
     table.add_row("Periodicity", str(habit.periodicity))
     table.add_row("Start Date", str(habit.start_date))
     table.add_row("Days Tracked", str((date.today() - habit.start_date).days))
     table.add_row("Times Completed", str(len(habit.check_off_log)))
     table.add_row("Longest Streak", str(longest_streak))
-    table.add_row(
-        "Status", 
-        "[red]Broken[/red]" if is_broken else "[green]Streak[/green]"
-    )
+    table.add_row("Status", status_display)
     if last_check_off:
         table.add_row("Last Check-off", str(last_check_off))
 
     console.print(table)
-    console.print("\n[blue]Tip:[/blue] Use [italic]poetry run habit history[/italic]", 
-                 f'[italic]"{habit_name}"[/italic] to see check-off history.')
+    console.print("\n[blue]Tip:[/blue] Use [italic]poetry run habit history", 
+                 f'"{habit_name}"[/italic] to see check-off history.')
 
 
 @cli.command()
