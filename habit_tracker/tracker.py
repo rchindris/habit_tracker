@@ -29,6 +29,14 @@ class HabitTracker:
           habit_name (str): The name of the habit to check.
         """
         return self._repository.get_by_name(habit_name) is not None
+    
+    def get_habit(self, habit_name: str) -> Habit:
+        """Get a habit by name.
+        
+        Args:
+          habit_name (str): The name of the habit to get.
+        """
+        return self._repository.get_by_name(habit_name)
 
     def get_habits(self, periodicity: Periodicity|str) -> List[Habit]:
         """Get all habits with the given periodicity.
