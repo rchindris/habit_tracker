@@ -94,6 +94,9 @@ def init_sample_data(db, force):
     for habit_data in SAMPLE_HABITS:
         # Create habit
         habit = Habit(**habit_data)
+        if tracker.habit_exists(habit.name):
+            click.echo(f"Deleting existing habit: {habit.name}")
+            tracker.delete(habit.name)
         tracker.create(habit)
         click.echo(f"Created habit: {habit_data['name']} ({habit_data['periodicity']})")
 
