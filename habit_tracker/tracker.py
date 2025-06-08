@@ -23,14 +23,19 @@ class HabitTracker:
         Raises:
             ValueError: If the habit name, description, or periodicity is not provided.
         """
+        if not habit:
+            raise ValueError("Habit is required")
+
         if not habit.name:
             raise ValueError("Habit name is required")
-        if not habit.description:
-            raise ValueError("Habit description is required")
         if not habit.periodicity:
             raise ValueError("Habit periodicity is required")
         if not habit.start_date:
             habit.start_date = date.today()
+
+        existing = self.get_habit(habit.name)
+        if existing:
+            raise ValueError(f"Habit with name '{habit.name}' already exists")
 
         self.repository.save(habit)
         return habit
@@ -74,12 +79,18 @@ class HabitTracker:
         Returns:
             bool: True if the habit was checked off, False otherwise.
         """
+        if not name:
+            raise ValueError("Habit name is required")
+
         habit = self.get_habit(name)
         if not habit:
             return False
 
         if not check_date:
             check_date = date.today()
+
+        if check_date > date.today():
+            raise ValueError("Check date cannot be in the future")
 
         # Create a new check-off
         check_off = CheckOff(date=check_date)
@@ -99,6 +110,12 @@ class HabitTracker:
         Returns:
             bool: True if the habit was deleted, False otherwise.
         """
+        if not name:
+            raise ValueError("Habit name is required")
+
+        if not self.habit_exists(name):
+            raise ValueError(f"Habit with name '{name}' does not exist")
+
         habit = self.get_habit(name)
         if not habit:
             return False

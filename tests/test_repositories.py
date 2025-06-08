@@ -14,7 +14,7 @@ def repo():
     repository = SqlHabitRepository(TEST_DB)
     yield repository
     
-    repository.session.close()
+    repository._session.close()
     try:
         os.remove(TEST_DB)
     except OSError:
@@ -59,7 +59,7 @@ def test_create_duplicate_habit(repo):
     )
     
     # Verify that saving raises an exception
-    with pytest.raises(HabitStoreException):
+    with pytest.raises(ValueError):
         repo.save(habit2)
 
 def test_get_by_name(repo):
@@ -130,5 +130,5 @@ def test_delete_nonexistent_habit(repo):
     )
     
     # Verify that deleting raises an exception
-    with pytest.raises(HabitStoreException):
+    with pytest.raises(ValueError):
         repo.delete(habit) 

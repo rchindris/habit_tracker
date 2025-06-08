@@ -88,12 +88,11 @@ def list(periodicity, db):
     repo = SqlHabitRepository(db)
     tracker = HabitTracker(repo)
 
-    # Get habits using analytics module
     all_habits = tracker.get_habits(None)
     if periodicity != "all":
-        habits = analytics.get_habits_by_periodicity(all_habits, Periodicity(periodicity))
+        habits = analytics.filter_by_periodicity(all_habits, Periodicity(periodicity))
     else:
-        habits = analytics.get_all_habits(all_habits)
+        habits = analytics.sort_by_name(all_habits)
 
     if not habits:
         console.print("[yellow]No habits found[/yellow]")
@@ -140,10 +139,12 @@ def check_off(name, db, date):
     repo = SqlHabitRepository(db)
     tracker = HabitTracker(repo)
 
-    if tracker.check_off(name, date.date()):
+    try:
+        tracker.check_off(name, date.date())
         console.print(f"[bold green]Checked off habit {name}[/bold green]")
-    else:
-        console.print(f"[bold red]Failed to check off habit {name}[/bold red]")
+    except ValueError as e:
+        console.print(f"[bold red]{e}[/bold red]")
+        return
 
 
 @cli.command()
@@ -160,9 +161,9 @@ def streaks(db, periodicity):
     # Get habits using analytics module
     all_habits = tracker.get_habits(None)
     if periodicity != "all":
-        habits = analytics.get_habits_by_periodicity(all_habits, Periodicity(periodicity))
+        habits = analytics.filter_by_periodicity(all_habits, Periodicity(periodicity))
     else:
-        habits = analytics.get_all_habits(all_habits)
+        habits = analytics.sort_by_name(all_habits)
 
     if not habits:
         console.print("[yellow]No habits found[/yellow]")
@@ -211,9 +212,9 @@ def show_broken(periodicity, db):
     # Get habits using analytics module
     all_habits = tracker.get_habits(None)
     if periodicity != "all":
-        habits = analytics.get_habits_by_periodicity(all_habits, Periodicity(periodicity))
+        habits = analytics.filter_by_periodicity(all_habits, Periodicity(periodicity))
     else:
-        habits = analytics.get_all_habits(all_habits)
+        habits = analytics.sort_by_name(all_habits)
 
     if not habits:
         console.print("[yellow]No habits found[/yellow]")
@@ -297,8 +298,8 @@ def show(habit_name, db):
 
     console.print(table)
     console.print(
-        "\n[blue]Tip:[/blue] Use [italic]poetry run habit history",
-        f'"{habit_name}"[/italic] to see check-off history.'
+        "\n[blue]Tip:[/blue] Use [italic]poetry run habit history[/italic]",
+        f'[italic]"{habit_name}"[/italic] to see check-off history.'
     )
 
 

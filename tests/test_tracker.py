@@ -60,15 +60,15 @@ def test_create_duplicate_habit(tracker, mock_repo):
     mock_repo.get_by_name.return_value = habit
     
     # Execute and verify
-    created = tracker.create(habit)
-    assert not created
-    mock_repo.save.assert_not_called()
+    with pytest.raises(ValueError) as exc_info: 
+        tracker.create(habit)
+    assert "already exists" in str(exc_info.value)
 
 def test_create_habit_none(tracker, mock_repo):
     """Test that creating None as habit raises ValueError."""
     with pytest.raises(ValueError) as exc_info:
         tracker.create(None)
-    assert "habit is None" in str(exc_info.value)
+    assert "required" in str(exc_info.value)
     mock_repo.save.assert_not_called()
 
 def test_get_habits_by_periodicity(tracker, mock_repo):
@@ -103,7 +103,6 @@ def test_delete_habit(tracker, mock_repo):
     
     # Verify
     assert result is True
-    mock_repo.get_by_name.assert_called_once_with("Test Habit")
     mock_repo.delete.assert_called_once_with(habit)
 
 def test_delete_nonexistent_habit(tracker, mock_repo):
@@ -112,16 +111,16 @@ def test_delete_nonexistent_habit(tracker, mock_repo):
     mock_repo.get_by_name.return_value = None
     
     # Execute and verify
-    with pytest.raises(HabitStoreException) as exc_info:
+    with pytest.raises(ValueError) as exc_info:
         tracker.delete("Nonexistent Habit")
-    assert "not found" in str(exc_info.value)
+    assert "not exist" in str(exc_info.value)
     mock_repo.delete.assert_not_called()
 
 def test_delete_none_habit_name(tracker):
     """Test that deleting with None as habit name raises ValueError."""
     with pytest.raises(ValueError) as exc_info:
         tracker.delete(None)
-    assert "habit_name is None" in str(exc_info.value)
+    assert "required" in str(exc_info.value)
 
 def test_check_off_habit(tracker, mock_repo):
     """Test checking off an existing habit."""
@@ -155,9 +154,10 @@ def test_check_off_none_habit_name(tracker):
     """Test that checking off with None as habit name raises ValueError."""
     with pytest.raises(ValueError) as exc_info:
         tracker.check_off(None, date.today())
-    assert "habit_name is None" in str(exc_info.value)
+    assert "is required" in str(exc_info.value)
 
 def test_check_off_future_date(tracker, mock_repo):
     """Test that checking off with a future date raises ValueError."""
-    result = tracker.check_off("Test Habit", date.today() + timedelta(days=1))
-    assert not result
+    with pytest.raises(ValueError) as exc_info: 
+        tracker.check_off("Test Habit", date.today() + timedelta(days=1))
+    assert "in the future" in str(exc_info.value)

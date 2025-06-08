@@ -3,7 +3,7 @@ from typing import List, Optional
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, InvalidRequestError
 
 from habit_tracker.models import (
     Habit,
@@ -22,24 +22,29 @@ class SqlHabitRepository(HabitRepository):
 
         self._logger = logging.getLogger(SqlHabitRepository.__name__)
 
-        self.engine = create_engine(f"sqlite:///{db_file}")
-        Habit.metadata.create_all(self.engine)
+        self._engine = create_engine(f"sqlite:///{db_file}")
+        self._session = Session(self._engine)
 
-    def save(self, habit: Habit):
+        Habit.metadata.create_all(self._engine)
+
+    def save(self, habit: Habit) -> Habit:
         """Store a new habit.
 
         Args:
             habit (Habit): The habit to store.
+        Returns:
+            Habit: The saved habit with refreshed state.
         Raises:
             ValueError: If the habit already exists.
         """
-        with Session(self.engine) as session:
-            session.add(habit)
-            try:
-                session.commit()
-            except IntegrityError:
-                session.rollback()
-                raise ValueError(f"Habit with name '{habit.name}' already exists")
+        self._session.add(habit)
+        try:
+            self._session.commit()
+            self._session.refresh(habit)
+            return habit
+        except IntegrityError:
+            self._session.rollback()
+            raise ValueError(f"Habit with name '{habit.name}' already exists")
 
     def get_all(self, periodicity: Periodicity | str) -> List[Habit]:
         """Return the habits with the given periodicity.
@@ -49,11 +54,10 @@ class SqlHabitRepository(HabitRepository):
         Returns:
             List[Habit]: The filtered habits.
         """
-        with Session(self.engine) as session:
-            query = session.query(Habit)
-            if periodicity:
-                query = query.filter(Habit.periodicity == periodicity)
-            return list(query.all())
+        query = self._session.query(Habit)
+        if periodicity:
+            query = query.filter(Habit.periodicity == periodicity)
+        return list(query.all())
 
     def get_by_name(self, name: str) -> Optional[Habit]:
         """Return the habit with the given name.
@@ -63,8 +67,7 @@ class SqlHabitRepository(HabitRepository):
         Returns:
             Optional[Habit]: The habit if found, None otherwise.
         """
-        with Session(self.engine) as session:
-            return session.query(Habit).filter(Habit.name == name).first()
+        return self._session.query(Habit).filter(Habit.name == name).first()
 
     def delete(self, habit: Habit):
         """Remove an existing habit.
@@ -72,6 +75,15 @@ class SqlHabitRepository(HabitRepository):
         Args:
             habit (Habit): The habit to delete.
         """
-        with Session(self.engine) as session:
-            session.delete(habit)
-            session.commit()
+        if not habit:
+            raise ValueError("Habit is required")
+
+        try:
+            self._session.delete(habit)
+            self._session.commit()
+        except IntegrityError:
+            self._session.rollback()
+            raise ValueError("Habit does not exist")
+        except InvalidRequestError:
+            self._session.rollback()
+            raise ValueError("Habit id not found")
